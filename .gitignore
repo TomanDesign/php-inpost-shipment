@@ -1,0 +1,22 @@
+# Ignore environment file with sensitive data
+.env
+
+# Ignore Composer dependencies
+vendor/
+
+# Ignore log file
+log.txt
+
+# Ignore Composer lock file (optional, include if you want to commit it)
+# composer.lock
+
+# Ignore IDE and editor files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Ignore temporary files
+*.log
+*.cache
+*.tmp
