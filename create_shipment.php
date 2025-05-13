@@ -76,13 +76,13 @@ try {
         'parcels' => [
             [
                 'dimensions' => [
-                    'length' => 300, // mm
-                    'width' => 200,  // mm
-                    'height' => 100, // mm
+                    'length' => '300', // mm
+                    'width' => '200',  // mm
+                    'height' => '100', // mm
                     'unit' => 'mm',
                 ],
                 'weight' => [
-                    'amount' => 2.5, // kg
+                    'amount' => '2.5', // kg
                     'unit' => 'kg',
                 ],
                 'is_non_standard' => false,
