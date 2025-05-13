@@ -15,6 +15,7 @@ $apiToken = $_ENV['INPOST_API_TOKEN'] ?? null;
 $organizationId = $_ENV['INPOST_ORGANIZATION_ID'] ?? null;
 $apiBaseUrl = "https://sandbox-api-shipx-pl.easypack24.net/v1";
 $logFile = 'log.txt'; // Log file for API responses
+$labelFolder = 'tmp';
 
 $reciver = [
     'first_name' => 'Jan',
@@ -118,7 +119,6 @@ try {
     $shipmentId = $shipmentResult['id'];
     $shipmentStatus = $shipmentResult['status'];
     $dispatchPointID = $shipmentResult['sender']['id'];
-    $dispatchPointAddress = $shipmentResult['sender']['address'];
 
     // Waiting for status changed to confirmed
     while ($shipmentResult['status'] !== 'confirmed') {
@@ -141,16 +141,22 @@ try {
         'verify' => false,
     ]);
 
-    file_put_contents('inpost_label'.$shipmentId.'.pdf', $labelResponse ->getBody()->__toString());
-    echo "Label Generated: " . 'inpost_label'.$shipmentId.'.pdf'  ."\n";
-    logToFile('Label Generated', 'inpost_label'.$shipmentId.'.pdf');
+    if (!is_dir($labelFolder)) {
+        mkdir($labelFolder, 0777, true); // Create directory with permissions, true allows recursive creation
+    }
+
+    file_put_contents($labelFolder.'/'.$shipmentId.'_inpost_label.pdf', $labelResponse ->getBody()->__toString());
+    echo "Label Generated " . $shipmentId . "_inpost_label.pdf \n";
+    logToFile('Label Generated', $shipmentId.'_inpost_label.pdf');
+
+    logToFile('reciver address', $reciver['address']);
 
     // Order courier (Dispatch Order)
     $dispatchOrderData = [
         'status' => $shipmentStatus,
         'shipments' => [$shipmentId],
         "dispatch_point_id" => [$dispatchPointID],
-        "address" => [$dispatchPointAddress],
+        "address" => $reciver['address'],
         'contact' => [
             'name' => $shipmentData['sender']['first_name'] . ' ' . $shipmentData['sender']['last_name'],
             'phone' => $shipmentData['sender']['phone'],
@@ -166,6 +172,19 @@ try {
 
     $dispatchResult = json_decode($dispatchResponse->getBody(), true);
     logToFile('Courier ordered', $dispatchResult);
+
+    $dispatchID = $dispatchResult['id'];
+
+    $printoutResponse = $client->get("$apiBaseUrl/dispatch_orders/$dispatchID/printout", [
+        'json' => [
+            'format' => 'Pdf',
+        ],
+        'verify' => false,
+    ]);
+
+    file_put_contents($labelFolder.'/'.$shipmentId.'_inpost_printout.pdf', $printoutResponse ->getBody()->__toString());
+    echo "printout Generated: " . $shipmentId.'_inpost_printout.pdf'  ."\n";
+    logToFile('printout Generated', $shipmentId.'_inpost_printout.pdf');
 
     echo "Courier ordered for shipment ID: $shipmentId\n";
 
