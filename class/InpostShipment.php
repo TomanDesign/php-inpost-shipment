@@ -182,7 +182,7 @@ class InpostShipment
     }
 
     /**
-     * Waits for the shipment status to become confirmed.
+     * Waits for the shipment status to become confirmed, displaying a spinning loader.
      *
      * @param string $shipmentId Shipment ID
      * @return array<string, mixed> Final shipment result
@@ -190,17 +190,30 @@ class InpostShipment
      */
     private function waitForShipmentConfirmation(string $shipmentId): array
     {
+        $spinner = ['|', '/', '-', '\\'];
+        $spinnerIndex = 0;
         $shipmentResult = [];
+
         while (!isset($shipmentResult['status']) || $shipmentResult['status'] !== 'confirmed') {
             sleep(1);
             $response = $this->client->get($this->apiBaseUrl . "/shipments/$shipmentId", [
                 'verify' => false, // TODO: Enable in production
             ]);
             $shipmentResult = json_decode($response->getBody()->__toString(), true);
-            echo "Shipment status: {$shipmentResult['status']}\n";
+
+            // Display spinning loader
+            echo "\rWaiting for shipment confirmation... " . $spinner[$spinnerIndex];
+            $spinnerIndex = ($spinnerIndex + 1) % 4;
+
+            // Log status for debugging
             $this->logToFile('Shipment status', $shipmentResult['status']);
         }
+
+        // Clear loader and display final status
+        echo "\r" . str_repeat(' ', 50) . "\r"; // Clear the line
+        echo "Shipment confirmed\n";
         $this->logToFile('Shipment details', $shipmentResult);
+
         return $shipmentResult;
     }
 
@@ -235,6 +248,8 @@ class InpostShipment
      * @param array<string, mixed> $shipmentData Shipment data
      * @param string $shipmentId Shipment ID
      * @param string $shipmentStatus Shipment status
+ Definition: The status of a shipment.
+ Example: created, confirmed
      * @param string $dispatchPointID Dispatch point ID
      * @return string Dispatch order ID
      * @throws RequestException If the API call fails
@@ -309,23 +324,18 @@ class InpostShipment
                 ],
                 'verify' => false, // TODO: Enable in production
             ]);
-
             $this->ensureLabelFolderExists();
             $printoutPath = "{$this->labelFolder}/{$shipmentId}_inpost_printout.pdf";
             file_put_contents($printoutPath, $printoutResponse->getBody()->__toString());
-
             echo "Printout Generated: {$shipmentId}_inpost_printout.pdf\n";
             $this->logToFile('Printout Generated', $printoutPath);
-
             return $printoutPath;
         } catch (RequestException $e) {
             $errorDetails = $e->hasResponse() ? json_decode($e->getResponse()->getBody()->__toString(), true) : ['message' => $e->getMessage()];
-
             $this->logToFile('Dispatch printout generation failed', [
                 'endpoint' => $endpoint,
                 'error' => $errorDetails,
             ]);
-
             throw $e;
         }
     }
@@ -345,11 +355,11 @@ class InpostShipment
             // Create shipment
             $shipmentResult = $this->createShipment($shipmentData);
             $shipmentId = (string) $shipmentResult['id']; // Cast to string
-            $shipmentStatus = $shipmentResult['status'];
             $dispatchPointID = (string) $shipmentResult['sender']['id']; // Cast to string
 
             // Wait for confirmation
             $shipmentResult = $this->waitForShipmentConfirmation($shipmentId);
+            $shipmentStatus = $shipmentResult['status']; // Update status to 'confirmed'
 
             // Generate label
             $this->generateShipmentLabel($shipmentId);
