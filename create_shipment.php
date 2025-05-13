@@ -16,6 +16,50 @@ $organizationId = $_ENV['INPOST_ORGANIZATION_ID'] ?? null;
 $apiBaseUrl = "https://sandbox-api-shipx-pl.easypack24.net/v1";
 $logFile = 'log.txt'; // Log file for API responses
 
+$reciver = [
+    'first_name' => 'Jan',
+    'last_name' => 'Kowalski',
+    'email' => 'jan.kowalski@example.com',
+    'phone' => '123456789',
+    'address' => [
+        'street' => 'ul. Testowa 1',
+        'building_number' => '1',
+        'city' => 'Warszawa',
+        'post_code' => '00-001',
+        'country_code' => 'PL',
+    ],
+];
+
+$sender = [
+    'first_name' => 'Anna',
+    'last_name' => 'Nowak',
+    'email' => 'anna.nowak@example.com',
+    'phone' => '987654321',
+    'address' => [
+        'street' => 'ul. Przykładowa 2',
+        'building_number' => '2',
+        'city' => 'Kraków',
+        'post_code' => '30-002',
+        'country_code' => 'PL',
+    ],
+];
+
+$parcels = [
+    [
+        'dimensions' => [
+            'length' => '300', // mm
+            'width' => '200',  // mm
+            'height' => '100', // mm
+            'unit' => 'mm',
+        ],
+        'weight' => [
+            'amount' => '2.5', // kg
+            'unit' => 'kg',
+        ],
+        'is_non_standard' => false,
+    ],
+];
+
 // Check if API token and organization ID are set
 if(!$apiToken || !$organizationId){
     throw new Exception('API token or organization ID not found');
@@ -47,50 +91,16 @@ function logToFile(string $message, $data): void
 try {
     // Shipment data
     $shipmentData = [
-        'receiver' => [
-            'first_name' => 'Jan',
-            'last_name' => 'Kowalski',
-            'email' => 'jan.kowalski@example.com',
-            'phone' => '123456789',
-            'address' => [
-                'street' => 'ul. Testowa 1',
-                'building_number' => '1',
-                'city' => 'Warszawa',
-                'post_code' => '00-001',
-                'country_code' => 'PL',
-            ],
-        ],
-        'sender' => [
-            'first_name' => 'Anna',
-            'last_name' => 'Nowak',
-            'email' => 'anna.nowak@example.com',
-            'phone' => '987654321',
-            'address' => [
-                'street' => 'ul. Przykładowa 2',
-                'building_number' => '2',
-                'city' => 'Kraków',
-                'post_code' => '30-002',
-                'country_code' => 'PL',
-            ],
-        ],
-        'parcels' => [
-            [
-                'dimensions' => [
-                    'length' => '300', // mm
-                    'width' => '200',  // mm
-                    'height' => '100', // mm
-                    'unit' => 'mm',
-                ],
-                'weight' => [
-                    'amount' => '2.5', // kg
-                    'unit' => 'kg',
-                ],
-                'is_non_standard' => false,
-            ],
-        ],
+        'receiver' => $reciver,
+        'sender' => $sender,
+        'parcels' => $parcels,
         "insurance" => [ // required inpost_courier_standard
             "amount" => '25',
             "currency" => 'PLN'
+        ],
+        'custom_attributes' => [
+            'sending_method' => 'dispatch_order',
+            'target_point' => 'KRA012',
         ],
         'service' => 'inpost_courier_standard', // Shipment type: Courier standard
         'reference' => 'ORDER_12345', // Reference number
@@ -102,15 +112,45 @@ try {
         'json' => $shipmentData,
         'verify' => false,
     ]);
-
     $shipmentResult = json_decode($response->getBody(), true);
     logToFile('Shipment created', $shipmentResult);
+
     $shipmentId = $shipmentResult['id'];
+    $shipmentStatus = $shipmentResult['status'];
+    $dispatchPointID = $shipmentResult['sender']['id'];
+    $dispatchPointAddress = $shipmentResult['sender']['address'];
+
+    // Waiting for status changed to confirmed
+    while ($shipmentResult['status'] !== 'confirmed') {
+        sleep(1);
+        $response = $client->get("$apiBaseUrl/shipments/$shipmentId", [
+            'verify' => false,
+        ]);
+        $shipmentResult = json_decode($response->getBody()->__toString(), true);
+        echo "Shipment status: " . $shipmentResult['status']  ."\n";
+        logToFile('Shipment status', $shipmentResult['status']);
+    }
+
+    logToFile('Shipment details :', $shipmentResult);
+
+    $labelResponse = $client->get("$apiBaseUrl/shipments/$shipmentId/label", [
+        'json' => [
+            'format' => 'Pdf',
+            'type' => 'A6',
+        ],
+        'verify' => false,
+    ]);
+
+    file_put_contents('inpost_label'.$shipmentId.'.pdf', $labelResponse ->getBody()->__toString());
+    echo "Label Generated: " . 'inpost_label'.$shipmentId.'.pdf'  ."\n";
+    logToFile('Label Generated', 'inpost_label'.$shipmentId.'.pdf');
 
     // Order courier (Dispatch Order)
     $dispatchOrderData = [
+        'status' => $shipmentStatus,
         'shipments' => [$shipmentId],
-        'address' => $shipmentData['sender']['address'], // Pickup address from sender
+        "dispatch_point_id" => [$dispatchPointID],
+        "address" => [$dispatchPointAddress],
         'contact' => [
             'name' => $shipmentData['sender']['first_name'] . ' ' . $shipmentData['sender']['last_name'],
             'phone' => $shipmentData['sender']['phone'],
