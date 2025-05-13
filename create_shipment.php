@@ -100,6 +100,7 @@ try {
     // Create shipment
     $response = $client->post("$apiBaseUrl/organizations/$organizationId/shipments", [
         'json' => $shipmentData,
+        'verify' => false,
     ]);
 
     $shipmentResult = json_decode($response->getBody(), true);
@@ -120,6 +121,7 @@ try {
 
     $dispatchResponse = $client->post("$apiBaseUrl/organizations/$organizationId/dispatch_orders", [
         'json' => $dispatchOrderData,
+        'verify' => false,
     ]);
 
     $dispatchResult = json_decode($dispatchResponse->getBody(), true);
