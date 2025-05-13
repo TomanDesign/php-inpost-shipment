@@ -88,6 +88,7 @@ try {
                 'is_non_standard' => false,
             ],
         ],
+        "insurance" => [ // required inpost_courier_standard
             "amount" => '25',
             "currency" => 'PLN'
         ],
@@ -117,7 +118,7 @@ try {
         'collection_date' => date('Y-m-d', strtotime('+1 day')), // Pickup date (next day)
     ];
 
-    $dispatchResponse = $client->post("$apiBaseUrl/organizations/$organizationId/dispatch_orders", [
+    $dispatchResponse = $client->post("$apiBaseUrl/organizations/5289956/dispatch_orders", [
         'json' => $dispatchOrderData,
     ]);
 
