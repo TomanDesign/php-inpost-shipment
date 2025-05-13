@@ -4,6 +4,9 @@
 # Ignore Composer dependencies
 vendor/
 
+# Ignore label temp folrer
+tmp/
+
 # Ignore log file
 log.txt
 

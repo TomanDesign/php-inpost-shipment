@@ -33,6 +33,7 @@ Simple PHP script to create a "Courier standard" shipment and order a courier us
    php create_shipment.php
    ```
 3. The script will create a shipment, order a courier, and save API responses to `log.txt`.
+4. Labels will be generated in `tmp` folder
 
 ## License
 MIT License
