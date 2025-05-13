@@ -88,6 +88,10 @@ try {
                 'is_non_standard' => false,
             ],
         ],
+        "insurance" => [ // required for inpost_courier_standard
+            "amount" => '25',
+            "currency" => 'PLN'
+        ],
         'service' => 'inpost_courier_standard', // Shipment type: Courier standard
         'reference' => 'ORDER_12345', // Reference number
         'comments' => 'Please handle the package with care',
@@ -114,7 +118,7 @@ try {
         'collection_date' => date('Y-m-d', strtotime('+1 day')), // Pickup date (next day)
     ];
 
-    $dispatchResponse = $client->post("$apiBaseUrl/organizations/$organizationId/dispatch_orders", [
+    $dispatchResponse = $client->post("$apiBaseUrl/organizations/5289956/dispatch_orders", [
         'json' => $dispatchOrderData,
     ]);
 
